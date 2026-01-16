@@ -1,22 +1,89 @@
-// Unfiltered AI - Production Ready
+// Firebase Config
+const firebaseConfig = {
+    apiKey: "AIzaSyBEOpODqoBU-cxE7Hczq7oHvI2gHTQ7OLs",
+    authDomain: "bookmarklet-23213.firebaseapp.com",
+    databaseURL: "https://bookmarklet-23213-default-rtdb.firebaseio.com",
+    projectId: "bookmarklet-23213",
+    storageBucket: "bookmarklet-23213.firebasestorage.app",
+    messagingSenderId: "979434209636",
+    appId: "1:979434209636:web:b293cd1ddc6a357e57ba71",
+    measurementId: "G-YS4Q3RNGPZ"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 class UnfilteredAI {
     constructor() {
-        this.chats = JSON.parse(localStorage.getItem('unfiltered_chats') || '[]');
+        this.chats = [];
         this.currentChatId = null;
-        this.settings = JSON.parse(localStorage.getItem('unfiltered_settings') || '{}');
+        this.settings = {};
         this.isProcessing = false;
+        this.userId = this.getOrCreateUserId();
+        this.apiUrl = 'https://unfiltered-ai.modmojheh.workers.dev';
         this.init();
     }
 
-    init() {
+    getOrCreateUserId() {
+        let id = localStorage.getItem('unfiltered_user_id');
+        if (!id) {
+            id = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('unfiltered_user_id', id);
+        }
+        return id;
+    }
+
+    async init() {
         this.bindElements();
         this.bindEvents();
+        await this.loadFromFirebase();
         this.renderChatList();
-        this.loadSettings();
         if (this.chats.length > 0) {
             this.loadChat(this.chats[0].id);
         }
-        this.initAds();
+    }
+
+    async loadFromFirebase() {
+        try {
+            // Load chats
+            const chatsSnapshot = await db.ref(`users/${this.userId}/chats`).once('value');
+            const chatsData = chatsSnapshot.val();
+            if (chatsData) {
+                this.chats = Object.values(chatsData).sort((a, b) => 
+                    new Date(b.createdAt) - new Date(a.createdAt)
+                );
+            }
+
+            // Load settings
+            const settingsSnapshot = await db.ref(`users/${this.userId}/settings`).once('value');
+            const settingsData = settingsSnapshot.val();
+            if (settingsData) {
+                this.settings = settingsData;
+                this.loadSettingsToUI();
+            }
+        } catch (e) {
+            console.log('Firebase load error, using local:', e);
+            this.chats = JSON.parse(localStorage.getItem('unfiltered_chats') || '[]');
+            this.settings = JSON.parse(localStorage.getItem('unfiltered_settings') || '{}');
+        }
+    }
+
+    async saveToFirebase() {
+        try {
+            // Save chats
+            const chatsObj = {};
+            this.chats.forEach(chat => { chatsObj[chat.id] = chat; });
+            await db.ref(`users/${this.userId}/chats`).set(chatsObj);
+
+            // Save settings
+            await db.ref(`users/${this.userId}/settings`).set(this.settings);
+        } catch (e) {
+            console.log('Firebase save error:', e);
+        }
+        // Also save locally as backup
+        localStorage.setItem('unfiltered_chats', JSON.stringify(this.chats));
+        localStorage.setItem('unfiltered_settings', JSON.stringify(this.settings));
     }
 
     bindElements() {
@@ -35,9 +102,9 @@ class UnfilteredAI {
         this.webSearchToggle = document.getElementById('webSearchToggle');
         this.settingsModal = document.getElementById('settingsModal');
         this.closeSettings = document.getElementById('closeSettings');
-        this.apiEndpoint = document.getElementById('apiEndpoint');
         this.customInstructions = document.getElementById('customInstructions');
-        this.aiPreferences = document.getElementById('aiPreferences');
+        this.responseStyle = document.getElementById('responseStyle');
+        this.codeStyle = document.getElementById('codeStyle');
         this.saveSettingsBtn = document.getElementById('saveSettings');
         this.clearAllDataBtn = document.getElementById('clearAllData');
         this.quickActions = document.querySelectorAll('.quick-actions .chip');
@@ -86,14 +153,6 @@ class UnfilteredAI {
         });
     }
 
-    initAds() {
-        try {
-            (adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) {
-            console.log('Ads not loaded');
-        }
-    }
-
     newChat() {
         this.currentChatId = null;
         this.welcomeScreen.style.display = 'flex';
@@ -114,7 +173,7 @@ class UnfilteredAI {
             createdAt: new Date().toISOString()
         };
         this.chats.unshift(chat);
-        this.saveChats();
+        this.saveToFirebase();
         this.renderChatList();
         return chat.id;
     }
@@ -140,10 +199,13 @@ class UnfilteredAI {
         this.closeSidebar();
     }
 
-    deleteChat(chatId) {
+    async deleteChat(chatId) {
         if (confirm('Delete this chat?')) {
             this.chats = this.chats.filter(c => c.id !== chatId);
-            this.saveChats();
+            try {
+                await db.ref(`users/${this.userId}/chats/${chatId}`).remove();
+            } catch (e) {}
+            this.saveToFirebase();
             this.renderChatList();
             if (this.currentChatId === chatId) {
                 this.newChat();
@@ -151,15 +213,11 @@ class UnfilteredAI {
         }
     }
 
-    saveChats() {
-        localStorage.setItem('unfiltered_chats', JSON.stringify(this.chats));
-    }
-
     renderChatList() {
         this.chatList.innerHTML = this.chats.map(chat => `
             <div class="chat-item ${chat.id === this.currentChatId ? 'active' : ''}" data-id="${chat.id}">
                 <span class="chat-item-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
                 </span>
@@ -168,7 +226,7 @@ class UnfilteredAI {
                     <div class="chat-item-date">${this.formatDate(chat.createdAt)}</div>
                 </div>
                 <button class="chat-item-delete" title="Delete">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
                     </svg>
                 </button>
@@ -207,38 +265,45 @@ class UnfilteredAI {
 
         chat.messages.push({ role: 'user', content });
         this.renderMessage('user', content);
-        this.saveChats();
+        this.saveToFirebase();
 
         this.messageInput.value = '';
         this.messageInput.style.height = 'auto';
         this.sendBtn.disabled = true;
 
-        // Show search indicator if web search is enabled
         if (webSearchEnabled) {
             this.showSearchIndicator();
         }
 
-        // Show typing indicator
         this.showTypingIndicator();
 
         try {
-            const apiUrl = this.settings.apiEndpoint || 'https://unfiltered-ai.modmojheh.workers.dev';
-            
-            let customInstructions = '';
-            if (this.settings.customInstructions) {
-                customInstructions += this.settings.customInstructions + '\n';
+            // Build custom instructions
+            let customInstructions = this.settings.customInstructions || '';
+            if (this.settings.responseStyle) {
+                const styles = {
+                    concise: 'Be very concise and direct. Short sentences.',
+                    detailed: 'Provide thorough, detailed explanations.',
+                    casual: 'Be casual and friendly, like talking to a friend.',
+                    professional: 'Maintain a professional, formal tone.'
+                };
+                customInstructions += '\n' + (styles[this.settings.responseStyle] || '');
             }
-            if (this.settings.aiPreferences) {
-                customInstructions += 'Response style preferences: ' + this.settings.aiPreferences;
+            if (this.settings.codeStyle) {
+                const codeStyles = {
+                    minimal: 'When writing code, do not include comments.',
+                    verbose: 'When writing code, include detailed comments explaining each section.'
+                };
+                customInstructions += '\n' + (codeStyles[this.settings.codeStyle] || '');
             }
 
-            const response = await fetch(`${apiUrl}/chat`, {
+            const response = await fetch(`${this.apiUrl}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: chat.messages,
                     generateTitle: isFirstMessage,
-                    customInstructions: customInstructions || undefined,
+                    customInstructions: customInstructions.trim() || undefined,
                     webSearch: webSearchEnabled,
                     searchQuery: content
                 })
@@ -262,13 +327,13 @@ class UnfilteredAI {
                 this.renderChatList();
             }
 
-            this.saveChats();
+            this.saveToFirebase();
 
         } catch (error) {
             console.error('Error:', error);
             this.hideSearchIndicator();
             this.hideTypingIndicator();
-            this.renderMessage('assistant', `Error: ${error.message}\n\nMake sure to configure your API endpoint in Settings.`);
+            this.renderMessage('assistant', `Error: ${error.message}`);
         }
 
         this.isProcessing = false;
@@ -278,7 +343,6 @@ class UnfilteredAI {
     renderMessage(role, content, animate = true) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
-        if (animate) messageDiv.classList.add('animate-slideUp');
 
         const avatarSvg = role === 'user' 
             ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
@@ -287,11 +351,19 @@ class UnfilteredAI {
         const roleName = role === 'user' ? 'You' : 'Unfiltered';
 
         messageDiv.innerHTML = `
-            <div class="message-header">
+            <div class="message-inner">
                 <div class="message-avatar">${avatarSvg}</div>
-                <span class="message-role">${roleName}</span>
+                <div class="message-body">
+                    <div class="message-role">${roleName}</div>
+                    <div class="message-content"></div>
+                    <div class="message-actions">
+                        <button class="action-btn copy-btn" title="Copy">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copy
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="message-content"></div>
         `;
 
         const contentDiv = messageDiv.querySelector('.message-content');
@@ -303,6 +375,17 @@ class UnfilteredAI {
         } else {
             contentDiv.textContent = content;
         }
+
+        // Add copy message button handler
+        const copyBtn = messageDiv.querySelector('.copy-btn');
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(content).then(() => {
+                copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied';
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+                }, 2000);
+            });
+        });
 
         this.messagesContainer.appendChild(messageDiv);
         this.scrollToBottom();
@@ -346,7 +429,10 @@ class UnfilteredAI {
             header.className = 'code-header';
             header.innerHTML = `
                 <span class="code-language">${language}</span>
-                <button class="code-copy">Copy</button>
+                <button class="code-copy">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    Copy
+                </button>
             `;
 
             pre.insertBefore(header, code);
@@ -354,10 +440,10 @@ class UnfilteredAI {
             const copyBtn = header.querySelector('.code-copy');
             copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(code.textContent).then(() => {
-                    copyBtn.textContent = 'Copied!';
+                    copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
                     copyBtn.classList.add('copied');
                     setTimeout(() => {
-                        copyBtn.textContent = 'Copy';
+                        copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
                         copyBtn.classList.remove('copied');
                     }, 2000);
                 });
@@ -370,14 +456,23 @@ class UnfilteredAI {
         indicator.className = 'search-indicator';
         indicator.id = 'searchIndicator';
         indicator.innerHTML = `
-            <div class="search-indicator-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="2" y1="12" x2="22" y2="12"/>
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                </svg>
+            <div class="search-indicator-inner">
+                <div class="message-avatar" style="background: var(--bg-input); border: 1px solid var(--border);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                </div>
+                <div class="search-indicator-content">
+                    <div class="search-indicator-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="2" y1="12" x2="22" y2="12"/>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                    </div>
+                    <span class="search-indicator-text">Searching the web...</span>
+                </div>
             </div>
-            <span class="search-indicator-text">Searching the web...</span>
         `;
         this.messagesContainer.appendChild(indicator);
         this.scrollToBottom();
@@ -390,21 +485,20 @@ class UnfilteredAI {
 
     showTypingIndicator() {
         const indicator = document.createElement('div');
-        indicator.className = 'message assistant typing';
+        indicator.className = 'typing-message';
         indicator.id = 'typingIndicator';
         indicator.innerHTML = `
-            <div class="message-header">
-                <div class="message-avatar">
+            <div class="typing-inner">
+                <div class="message-avatar" style="background: var(--bg-input); border: 1px solid var(--border);">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                     </svg>
                 </div>
-                <span class="message-role">Unfiltered</span>
-            </div>
-            <div class="typing-indicator">
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
             </div>
         `;
         this.messagesContainer.appendChild(indicator);
@@ -431,6 +525,7 @@ class UnfilteredAI {
     }
 
     openSettings() {
+        this.loadSettingsToUI();
         this.settingsModal.classList.add('active');
     }
 
@@ -438,25 +533,28 @@ class UnfilteredAI {
         this.settingsModal.classList.remove('active');
     }
 
-    loadSettings() {
-        this.apiEndpoint.value = this.settings.apiEndpoint || '';
+    loadSettingsToUI() {
         this.customInstructions.value = this.settings.customInstructions || '';
-        this.aiPreferences.value = this.settings.aiPreferences || '';
+        this.responseStyle.value = this.settings.responseStyle || '';
+        this.codeStyle.value = this.settings.codeStyle || '';
     }
 
-    saveSettings() {
+    async saveSettings() {
         this.settings = {
-            apiEndpoint: this.apiEndpoint.value.trim(),
             customInstructions: this.customInstructions.value.trim(),
-            aiPreferences: this.aiPreferences.value.trim()
+            responseStyle: this.responseStyle.value,
+            codeStyle: this.codeStyle.value
         };
-        localStorage.setItem('unfiltered_settings', JSON.stringify(this.settings));
+        await this.saveToFirebase();
         this.closeSettingsModal();
         this.showToast('Settings saved!');
     }
 
-    clearAllData() {
+    async clearAllData() {
         if (confirm('Delete all chats and settings? This cannot be undone.')) {
+            try {
+                await db.ref(`users/${this.userId}`).remove();
+            } catch (e) {}
             localStorage.removeItem('unfiltered_chats');
             localStorage.removeItem('unfiltered_settings');
             location.reload();
@@ -472,11 +570,12 @@ class UnfilteredAI {
             transform: translateX(-50%);
             background: linear-gradient(135deg, #FF8C42, #FF6B35);
             color: white;
-            padding: 0.75rem 1.5rem;
+            padding: 0.65rem 1.25rem;
             border-radius: 999px;
             font-weight: 500;
+            font-size: 0.9rem;
             z-index: 1000;
-            animation: slideUp 0.3s ease-out;
+            animation: fadeIn 0.2s ease-out;
         `;
         toast.textContent = message;
         document.body.appendChild(toast);
