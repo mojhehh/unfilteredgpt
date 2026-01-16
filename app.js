@@ -21,6 +21,43 @@ try {
     console.log('Firebase init failed:', e);
 }
 
+// TOS Handler - Check before loading app
+function checkTOS() {
+    const tosAccepted = localStorage.getItem('tos_accepted');
+    const tosModal = document.getElementById('tosModal');
+    const appContainer = document.querySelector('.app-container');
+    const tosAgreeCheckbox = document.getElementById('tosAgree');
+    const tosAcceptBtn = document.getElementById('tosAcceptBtn');
+    
+    if (tosAccepted === 'true') {
+        tosModal.style.display = 'none';
+        return true;
+    }
+    
+    // Show TOS modal, hide app
+    tosModal.style.display = 'flex';
+    appContainer.classList.add('app-hidden');
+    
+    // Handle checkbox
+    tosAgreeCheckbox.addEventListener('change', () => {
+        tosAcceptBtn.disabled = !tosAgreeCheckbox.checked;
+    });
+    
+    // Handle accept
+    tosAcceptBtn.addEventListener('click', () => {
+        if (tosAgreeCheckbox.checked) {
+            localStorage.setItem('tos_accepted', 'true');
+            localStorage.setItem('tos_accepted_date', new Date().toISOString());
+            tosModal.style.display = 'none';
+            appContainer.classList.remove('app-hidden');
+            // Initialize app after TOS accepted
+            window.app = new UnfilteredAI();
+        }
+    });
+    
+    return false;
+}
+
 class UnfilteredAI {
     constructor() {
         this.chats = [];
@@ -816,5 +853,8 @@ class UnfilteredAI {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.app = new UnfilteredAI();
+    // Check TOS first - only init app if accepted
+    if (checkTOS()) {
+        window.app = new UnfilteredAI();
+    }
 });

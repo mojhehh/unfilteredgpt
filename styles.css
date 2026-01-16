@@ -780,3 +780,201 @@ body {
 
 .memory-saved-indicator svg { width: 16px; height: 16px; color: var(--primary); }
 
+/* TOS Modal Styles */
+.tos-modal {
+    z-index: 10000;
+}
+
+.tos-modal-content {
+    max-width: 700px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.tos-header {
+    text-align: center;
+    padding: 1.5rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.tos-logo {
+    margin-bottom: 0.75rem;
+}
+
+.tos-header h3 {
+    font-size: 1.4rem;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+}
+
+.tos-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.tos-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+
+.tos-section {
+    margin-bottom: 2rem;
+}
+
+.tos-section h4 {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.tos-text {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.tos-text h5 {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    margin: 1.25rem 0 0.5rem;
+}
+
+.tos-text h5:first-of-type {
+    margin-top: 0.5rem;
+}
+
+.tos-text p {
+    margin-bottom: 0.75rem;
+}
+
+.tos-text ul {
+    margin: 0.5rem 0 1rem 1.5rem;
+}
+
+.tos-text li {
+    margin-bottom: 0.35rem;
+}
+
+.tos-text strong {
+    color: var(--text-primary);
+}
+
+.tos-agreement {
+    padding: 1rem 0;
+    border-top: 1px solid var(--border);
+}
+
+.tos-checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.tos-checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    accent-color: var(--primary);
+    cursor: pointer;
+    margin-top: 2px;
+}
+
+.tos-checkbox-label strong {
+    color: var(--primary);
+}
+
+.tos-footer {
+    padding: 1rem 1.5rem 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.btn-accept {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-accept:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-accept:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+}
+
+.btn-accept:not(:disabled):active {
+    transform: translateY(0);
+}
+
+/* Hide app until TOS accepted */
+.app-hidden {
+    display: none !important;
+}
+
+/* TOS text scrollbar */
+.tos-text::-webkit-scrollbar,
+.tos-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.tos-text::-webkit-scrollbar-track,
+.tos-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.tos-text::-webkit-scrollbar-thumb,
+.tos-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 140, 66, 0.3);
+    border-radius: 3px;
+}
+
+.tos-text::-webkit-scrollbar-thumb:hover,
+.tos-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 140, 66, 0.5);
+}
+
+@media (max-width: 768px) {
+    .tos-modal-content {
+        max-width: 95%;
+        max-height: 95vh;
+        margin: 2.5vh auto;
+    }
+    
+    .tos-text {
+        max-height: 200px;
+    }
+    
+    .tos-header h3 {
+        font-size: 1.2rem;
+    }
+}
+
