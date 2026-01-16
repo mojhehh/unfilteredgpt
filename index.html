@@ -121,31 +121,49 @@
                 </button>
             </div>
             <div class="modal-content">
-                <div class="setting-group">
-                    <label>Custom Instructions</label>
-                    <textarea id="customInstructions" class="setting-textarea" placeholder="Add any custom instructions for the AI (e.g., 'Always respond in Spanish', 'Be very concise')"></textarea>
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="general">General</button>
+                    <button class="settings-tab" data-tab="memory">Memory</button>
                 </div>
-                <div class="setting-group">
-                    <label>Response Style</label>
-                    <select id="responseStyle" class="setting-input">
-                        <option value="">Default</option>
-                        <option value="concise">Concise - Short and direct</option>
-                        <option value="detailed">Detailed - Thorough explanations</option>
-                        <option value="casual">Casual - Friendly and relaxed</option>
-                        <option value="professional">Professional - Formal tone</option>
-                    </select>
+                
+                <div class="settings-panel active" id="generalPanel">
+                    <div class="setting-group">
+                        <label>Custom Instructions</label>
+                        <textarea id="customInstructions" class="setting-textarea" placeholder="Add any custom instructions for the AI (e.g., 'Always respond in Spanish', 'Be very concise')"></textarea>
+                    </div>
+                    <div class="setting-group">
+                        <label>Response Style</label>
+                        <select id="responseStyle" class="setting-input">
+                            <option value="">Default</option>
+                            <option value="concise">Concise - Short and direct</option>
+                            <option value="detailed">Detailed - Thorough explanations</option>
+                            <option value="casual">Casual - Friendly and relaxed</option>
+                            <option value="professional">Professional - Formal tone</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label>Code Style</label>
+                        <select id="codeStyle" class="setting-input">
+                            <option value="">With comments</option>
+                            <option value="minimal">Minimal - No comments</option>
+                            <option value="verbose">Verbose - Detailed comments</option>
+                        </select>
+                    </div>
+                    <button class="btn-save" id="saveSettings">Save Settings</button>
+                    <hr style="border-color: var(--border); margin: 1rem 0;">
+                    <button class="btn-danger" id="clearAllData">Clear All Data</button>
                 </div>
-                <div class="setting-group">
-                    <label>Code Style</label>
-                    <select id="codeStyle" class="setting-input">
-                        <option value="">With comments</option>
-                        <option value="minimal">Minimal - No comments</option>
-                        <option value="verbose">Verbose - Detailed comments</option>
-                    </select>
+                
+                <div class="settings-panel" id="memoryPanel">
+                    <div class="memory-info">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm1-13h-2v6h2zm0 8h-2v2h2z"/></svg>
+                        <span>The AI can remember things you tell it across all chats. Just say "remember that..." or "save this..."</span>
+                    </div>
+                    <div class="memory-list" id="memoryList">
+                        <div class="memory-empty">No memories saved yet</div>
+                    </div>
+                    <button class="btn-danger" id="clearAllMemory">Clear All Memories</button>
                 </div>
-                <button class="btn-save" id="saveSettings">Save Settings</button>
-                <hr style="border-color: var(--border); margin: 1rem 0;">
-                <button class="btn-danger" id="clearAllData">Clear All Data</button>
             </div>
         </div>
     </div>

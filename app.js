@@ -19,6 +19,7 @@ class UnfilteredAI {
         this.chats = [];
         this.currentChatId = null;
         this.settings = {};
+        this.memories = [];
         this.isProcessing = false;
         this.userId = this.getOrCreateUserId();
         this.apiUrl = 'https://unfiltered-ai.modmojheh.workers.dev';
@@ -62,10 +63,20 @@ class UnfilteredAI {
                 this.settings = settingsData;
                 this.loadSettingsToUI();
             }
+
+            // Load memories
+            const memoriesSnapshot = await db.ref(`users/${this.userId}/memories`).once('value');
+            const memoriesData = memoriesSnapshot.val();
+            if (memoriesData) {
+                this.memories = Object.values(memoriesData).sort((a, b) => 
+                    new Date(b.createdAt) - new Date(a.createdAt)
+                );
+            }
         } catch (e) {
             console.log('Firebase load error, using local:', e);
             this.chats = JSON.parse(localStorage.getItem('unfiltered_chats') || '[]');
             this.settings = JSON.parse(localStorage.getItem('unfiltered_settings') || '{}');
+            this.memories = JSON.parse(localStorage.getItem('unfiltered_memories') || '[]');
         }
     }
 
@@ -78,12 +89,18 @@ class UnfilteredAI {
 
             // Save settings
             await db.ref(`users/${this.userId}/settings`).set(this.settings);
+
+            // Save memories
+            const memoriesObj = {};
+            this.memories.forEach(mem => { memoriesObj[mem.id] = mem; });
+            await db.ref(`users/${this.userId}/memories`).set(memoriesObj);
         } catch (e) {
             console.log('Firebase save error:', e);
         }
         // Also save locally as backup
         localStorage.setItem('unfiltered_chats', JSON.stringify(this.chats));
         localStorage.setItem('unfiltered_settings', JSON.stringify(this.settings));
+        localStorage.setItem('unfiltered_memories', JSON.stringify(this.memories));
     }
 
     bindElements() {
@@ -107,6 +124,10 @@ class UnfilteredAI {
         this.codeStyle = document.getElementById('codeStyle');
         this.saveSettingsBtn = document.getElementById('saveSettings');
         this.clearAllDataBtn = document.getElementById('clearAllData');
+        this.clearAllMemoryBtn = document.getElementById('clearAllMemory');
+        this.memoryList = document.getElementById('memoryList');
+        this.settingsTabs = document.querySelectorAll('.settings-tab');
+        this.settingsPanels = document.querySelectorAll('.settings-panel');
         this.quickActions = document.querySelectorAll('.quick-actions .chip');
     }
 
@@ -135,8 +156,23 @@ class UnfilteredAI {
         this.closeSettings.addEventListener('click', () => this.closeSettingsModal());
         this.saveSettingsBtn.addEventListener('click', () => this.saveSettings());
         this.clearAllDataBtn.addEventListener('click', () => this.clearAllData());
+        this.clearAllMemoryBtn.addEventListener('click', () => this.clearAllMemories());
         this.settingsModal.addEventListener('click', (e) => {
             if (e.target === this.settingsModal) this.closeSettingsModal();
+        });
+
+        // Settings tabs
+        this.settingsTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                this.settingsTabs.forEach(t => t.classList.remove('active'));
+                this.settingsPanels.forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tabName + 'Panel').classList.add('active');
+                if (tabName === 'memory') {
+                    this.renderMemoryList();
+                }
+            });
         });
 
         this.quickActions.forEach(chip => {
@@ -305,7 +341,8 @@ class UnfilteredAI {
                     generateTitle: isFirstMessage,
                     customInstructions: customInstructions.trim() || undefined,
                     webSearch: webSearchEnabled,
-                    searchQuery: content
+                    searchQuery: content,
+                    memories: this.memories.map(m => m.content)
                 })
             });
 
@@ -317,6 +354,12 @@ class UnfilteredAI {
 
             this.hideSearchIndicator();
             this.hideTypingIndicator();
+
+            // Handle memory save
+            if (data.memoryToSave) {
+                await this.addMemory(data.memoryToSave);
+                this.showMemorySavedIndicator();
+            }
 
             const reply = data.reply || 'Sorry, I could not generate a response.';
             chat.messages.push({ role: 'assistant', content: reply });
@@ -560,14 +603,89 @@ class UnfilteredAI {
     }
 
     async clearAllData() {
-        if (confirm('Delete all chats and settings? This cannot be undone.')) {
+        if (confirm('Delete all chats, settings and memories? This cannot be undone.')) {
             try {
                 await db.ref(`users/${this.userId}`).remove();
             } catch (e) {}
             localStorage.removeItem('unfiltered_chats');
             localStorage.removeItem('unfiltered_settings');
+            localStorage.removeItem('unfiltered_memories');
             location.reload();
         }
+    }
+
+    // Memory Management
+    async addMemory(content) {
+        const memory = {
+            id: Date.now().toString(),
+            content: content,
+            createdAt: new Date().toISOString()
+        };
+        this.memories.unshift(memory);
+        await this.saveToFirebase();
+    }
+
+    async deleteMemory(memoryId) {
+        this.memories = this.memories.filter(m => m.id !== memoryId);
+        try {
+            await db.ref(`users/${this.userId}/memories/${memoryId}`).remove();
+        } catch (e) {}
+        await this.saveToFirebase();
+        this.renderMemoryList();
+    }
+
+    async clearAllMemories() {
+        if (confirm('Delete all saved memories? This cannot be undone.')) {
+            this.memories = [];
+            try {
+                await db.ref(`users/${this.userId}/memories`).remove();
+            } catch (e) {}
+            localStorage.removeItem('unfiltered_memories');
+            this.renderMemoryList();
+            this.showToast('All memories cleared');
+        }
+    }
+
+    renderMemoryList() {
+        if (this.memories.length === 0) {
+            this.memoryList.innerHTML = '<div class="memory-empty">No memories saved yet. Tell the AI to "remember" something!</div>';
+            return;
+        }
+
+        this.memoryList.innerHTML = this.memories.map(mem => `
+            <div class="memory-item" data-id="${mem.id}">
+                <div class="memory-item-content">
+                    <div class="memory-item-text">${this.escapeHtml(mem.content)}</div>
+                    <div class="memory-item-date">${this.formatDate(mem.createdAt)}</div>
+                </div>
+                <button class="memory-item-delete" title="Delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                    </svg>
+                </button>
+            </div>
+        `).join('');
+
+        this.memoryList.querySelectorAll('.memory-item-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const memoryId = e.target.closest('.memory-item').dataset.id;
+                this.deleteMemory(memoryId);
+            });
+        });
+    }
+
+    showMemorySavedIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'memory-saved-indicator';
+        indicator.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
+                <path d="M12 6v6l4 2"/>
+            </svg>
+            <span>Saved to memory</span>
+        `;
+        this.messagesContainer.appendChild(indicator);
+        this.scrollToBottom();
     }
 
     showToast(message) {
