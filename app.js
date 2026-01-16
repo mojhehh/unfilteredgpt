@@ -337,6 +337,7 @@ class UnfilteredAI {
         }
 
         const chat = this.chats.find(c => c.id === this.currentChatId);
+        if (!chat.messages) chat.messages = [];
         const isFirstMessage = chat.messages.length === 0;
         const webSearchEnabled = this.webSearchToggle.checked;
 
@@ -383,7 +384,7 @@ class UnfilteredAI {
                     customInstructions: customInstructions.trim() || undefined,
                     webSearch: webSearchEnabled,
                     searchQuery: content,
-                    memories: this.memories.map(m => m.content)
+                    memories: (this.memories || []).map(m => m.content)
                 })
             });
 

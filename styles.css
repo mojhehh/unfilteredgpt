@@ -159,11 +159,11 @@ body {
 .message {
     padding: 1.5rem 0;
     animation: fadeIn 0.3s ease-out;
-    background: #1a1a1a;
+    background: #000000;
 }
 
-.message.user { background: #1a1a1a; }
-.message.assistant { background: #1a1a1a; }
+.message.user { background: #000000; }
+.message.assistant { background: #000000; }
 
 .message-inner {
     max-width: 800px;
