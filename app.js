@@ -372,6 +372,7 @@ class UnfilteredAI {
             contentDiv.innerHTML = this.parseMarkdown(content);
             this.highlightCode(contentDiv);
             this.addCopyButtons(contentDiv);
+            this.fixLinks(contentDiv);
         } else {
             contentDiv.textContent = content;
         }
@@ -408,6 +409,14 @@ class UnfilteredAI {
     highlightCode(container) {
         container.querySelectorAll('pre code').forEach(block => {
             hljs.highlightElement(block);
+        });
+    }
+
+    // Make all links open in new tab
+    fixLinks(container) {
+        container.querySelectorAll('a').forEach(link => {
+            link.setAttribute('target', '_blank');
+            link.setAttribute('rel', 'noopener noreferrer');
         });
     }
 

@@ -166,10 +166,15 @@ body {
 
 .message-inner {
     max-width: 800px;
-    margin: 0 auto;
+    margin: 0;
     padding: 0 1.5rem;
     display: flex;
     gap: 1rem;
+}
+
+.message.user .message-inner {
+    margin-left: auto;
+    margin-right: 0;
 }
 
 .message.user .message-inner { flex-direction: row-reverse; }
@@ -200,8 +205,9 @@ body {
 
 .message.user .message-role { justify-content: flex-end; }
 
-.message-content { line-height: 1.7; }
-.message.user .message-content { text-align: right; }
+.message-content { line-height: 1.7; color: #ffffff; }
+.message.user .message-content { text-align: right; color: #ffffff; }
+.message.assistant .message-content { color: #e8e8e8; }
 
 .message-content p { margin-bottom: 1rem; }
 .message-content p:last-child { margin-bottom: 0; }
