@@ -445,7 +445,9 @@ class UnfilteredAI {
             chat.messages.push({ role: 'assistant', content: reply });
             this.renderMessage('assistant', reply);
 
-            if (data.title && isFirstMessage) {
+            // Update title if received
+            if (data.title) {
+                console.log('Received title:', data.title);
                 chat.title = data.title;
                 this.renderChatList();
             }
